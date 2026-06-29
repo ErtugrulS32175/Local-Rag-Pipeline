@@ -1,0 +1,14 @@
+docling
+docling-core
+transformers
+torch
+torchvision
+torchaudio
+qdrant-client
+ollama
+FlagEmbedding
+fastapi
+uvicorn
+python-dotenv
+requests
+Pillow
