@@ -81,22 +81,20 @@ def rerank(query: str, chunks: list[dict], top_n: int = TOP_RERANK) -> list[dict
 
 def build_context(chunks: list[dict]) -> str:
     parts = []
-    for i, chunk in enumerate(chunks):
-        chunk_type = chunk.get("type", "text")
-        page       = chunk.get("page", "?")
-        headings   = " > ".join(chunk.get("headings", [])) or "No heading"
-        text       = chunk.get("text", "")
-        parts.append(f"[Kaynak {i+1} | Tip: {chunk_type} | Sayfa: {page} | Bölüm: {headings}]\n{text}")
+    for chunk in chunks:
+        page = chunk.get("page", "?")
+        text = chunk.get("text", "")
+        parts.append(f"[Sayfa {page}]\n{text}")
     return "\n\n---\n\n".join(parts)
 
 def generate(question: str, context: str) -> str:
-    prompt = f"""Aşağıdaki kaynak bilgilere dayanarak soruyu Türkçe olarak cevapla.
-SADECE kaynaklarda açıkça belirtilen bilgileri kullan.
-Kaynaklarda olmayan hiçbir bilgiyi ekleme veya tahmin etme.
-Cevabında hangi kaynaktan aldığını belirt (örn: Kaynak 1, Sayfa 13).
-Eğer cevap kaynaklarda yoksa "Bu bilgi mevcut belgelerde bulunamadı." de.
+    prompt = f"""Aşağıdaki belge pasajlarına dayanarak soruyu Türkçe olarak cevapla.
+SADECE pasajlarda açıkça belirtilen bilgileri kullan.
+Pasajlarda olmayan hiçbir bilgiyi ekleme veya tahmin etme.
+Cevabında ilgili sayfa numarasını belirt (örn: "Sayfa 13'e göre...").
+Eğer cevap pasajlarda yoksa "Bu bilgi mevcut belgelerde bulunamadı." de.
 
-KAYNAKLAR:
+BELGE PASAJLARI:
 {context}
 
 SORU: {question}
@@ -126,12 +124,7 @@ def query(request: QueryRequest):
         "question": request.question,
         "answer": answer,
         "sources": [
-            {
-                "type": c.get("type"),
-                "page": c.get("page"),
-                "headings": c.get("headings"),
-                "text": c.get("text", "")[:200],
-            }
+            {"page": c.get("page"), "type": c.get("type"), "text": c.get("text", "")[:200]}
             for c in chunks
         ]
     }

@@ -32,7 +32,7 @@ if torch.cuda.is_available():
 print("Reranker loaded.")
 
 def embed_dense(text: str) -> list[float]:
-    response = ollama.embeddings(model=EMBED_MODEL, prompt=text)
+    response = ollama.embeddings(model=EMBED_MODEL, prompt=text[:2000])
     return response["embedding"]
 
 def embed_sparse(text: str):
@@ -46,16 +46,8 @@ def retrieve(query: str, top_k: int = TOP_K) -> list[dict]:
     results = client.query_points(
         collection_name=COLLECTION_NAME,
         prefetch=[
-            Prefetch(
-                query=dense_vector,
-                using="dense",
-                limit=top_k,
-            ),
-            Prefetch(
-                query={"indices": sparse_indices, "values": sparse_values},
-                using="sparse",
-                limit=top_k,
-            ),
+            Prefetch(query=dense_vector, using="dense", limit=top_k),
+            Prefetch(query={"indices": sparse_indices, "values": sparse_values}, using="sparse", limit=top_k),
         ],
         query=FusionQuery(fusion=Fusion.RRF),
         limit=top_k,
@@ -66,12 +58,8 @@ def retrieve(query: str, top_k: int = TOP_K) -> list[dict]:
 def rerank(query: str, chunks: list[dict], top_n: int = TOP_RERANK) -> list[dict]:
     pairs = [[query, chunk["text"]] for chunk in chunks]
     inputs = reranker_tokenizer(
-        [p[0] for p in pairs],
-        [p[1] for p in pairs],
-        padding=True,
-        truncation=True,
-        max_length=512,
-        return_tensors="pt"
+        [p[0] for p in pairs], [p[1] for p in pairs],
+        padding=True, truncation=True, max_length=512, return_tensors="pt"
     )
     if torch.cuda.is_available():
         inputs = {k: v.cuda() for k, v in inputs.items()}
@@ -84,14 +72,10 @@ def rerank(query: str, chunks: list[dict], top_n: int = TOP_RERANK) -> list[dict
 
 def build_context(chunks: list[dict]) -> str:
     parts = []
-    for i, chunk in enumerate(chunks):
-        chunk_type = chunk.get("type", "text")
-        page       = chunk.get("page", "?")
-        headings   = " > ".join(chunk.get("headings", [])) or "No heading"
-        text       = chunk.get("text", "")
-        parts.append(
-            f"[Kaynak {i+1} | Tip: {chunk_type} | Sayfa: {page} | Bölüm: {headings}]\n{text}"
-        )
+    for chunk in chunks:
+        page = chunk.get("page", "?")
+        text = chunk.get("text", "")
+        parts.append(f"[Sayfa {page}]\n{text}")
     return "\n\n---\n\n".join(parts)
 
 def ask(question: str) -> str:
@@ -99,13 +83,13 @@ def ask(question: str) -> str:
     chunks  = rerank(question, chunks)
     context = build_context(chunks)
 
-    prompt = f"""Aşağıdaki kaynak bilgilere dayanarak soruyu Türkçe olarak cevapla.
-SADECE kaynaklarda açıkça belirtilen bilgileri kullan.
-Kaynaklarda olmayan hiçbir bilgiyi ekleme veya tahmin etme.
-Cevabında hangi kaynaktan aldığını belirt (örn: Kaynak 1, Sayfa 13).
-Eğer cevap kaynaklarda yoksa "Bu bilgi mevcut belgelerde bulunamadı." de.
+    prompt = f"""Aşağıdaki belge pasajlarına dayanarak soruyu Türkçe olarak cevapla.
+SADECE pasajlarda açıkça belirtilen bilgileri kullan.
+Pasajlarda olmayan hiçbir bilgiyi ekleme veya tahmin etme.
+Cevabında ilgili sayfa numarasını belirt (örn: "Sayfa 13'e göre...").
+Eğer cevap pasajlarda yoksa "Bu bilgi mevcut belgelerde bulunamadı." de.
 
-KAYNAKLAR:
+BELGE PASAJLARI:
 {context}
 
 SORU: {question}
