@@ -233,3 +233,5 @@ qdrant_storage/
 
 # PDF files
 *.pdf
+# Generated output (images, chunks, metadata)
+output/

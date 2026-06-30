@@ -64,7 +64,7 @@ print(f"Loaded {len(image_chunks)} image chunks.")
 
 # --- Helpers ---
 def embed_dense(text: str) -> list[float]:
-    response = ollama.embeddings(model=EMBED_MODEL, prompt=text)
+    response = ollama.embeddings(model=EMBED_MODEL, prompt=text[:2000])
     return response["embedding"]
 
 def embed_sparse(text: str) -> SparseVector:
