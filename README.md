@@ -19,13 +19,13 @@ Both paths converge into:
 
 ## Features
 
-- **Fully offline** — no data sent to external servers
-- **Multimodal parsing** — text, tables, and images all understood and indexed
-- **Hybrid search** — combines dense (semantic) and sparse (BM25 keyword) retrieval via Reciprocal Rank Fusion
+- **Fully Offline** — no data sent to external servers
+- **Multimodal Parsing** — text, tables, and images all understood and indexed
+- **Hybrid Search** — combines dense (semantic) and sparse (BM25 keyword) retrieval via Reciprocal Rank Fusion
 - **Reranking** — cross-encoder reranker improves retrieval precision
-- **Page-level source citation** — every answer references the exact page it came from
-- **Turkish-first** — tuned prompts and multilingual models for Turkish documents
-- **OpenWebUI integration** — chat interface via a custom pipe
+- **Page-Level Source Citation** — every answer references the exact page it came from
+- **Turkish-First** — tuned prompts and multilingual models for Turkish documents
+- **OpenWebUI Integration** — chat interface via a custom pipe
 
 ## Tech Stack
 
@@ -50,6 +50,10 @@ Both paths converge into:
 - Python 3.10+ (Anaconda recommended)
 - 32GB RAM recommended
 
+## Example
+
+This pipeline was built and tested using OYAK's publicly available [2024 Annual Report](https://www.oyak.com.tr) (Turkish, 108 pages, text + tables + charts). The pipe in OpenWebUI is named "OYAK RAG Pipeline" in this example setup — rename it as needed and works with any PDF.
+
 ## Setup
 
 ### 1. Start Qdrant
@@ -57,19 +61,19 @@ Both paths converge into:
 docker run -p 6333:6333 -v C:\qdrant_storage:/qdrant/storage qdrant/qdrant
 ```
 
-### 2. Pull Ollama models
+### 2. Pull Ollama Models
 ```bash
 ollama pull qwen3:8b
 ollama pull bge-m3
 ollama pull qwen2.5vl:7b
 ```
 
-### 3. Install Python dependencies
+### 3. Install Python Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Configure environment
+### 4. Configure Environment
 Copy `.env.example` to `.env` and adjust paths/collection name as needed.
 
 ### 5. Ingest a PDF
@@ -90,7 +94,7 @@ python ingest.py
 
 > **Note:** Steps 1 (`docling_test.py`) and 2 (`docling_stage2.py`) both use GPU-bound models. On 8GB VRAM, running Docling's table parser and the vision model simultaneously can cause out-of-memory errors. Run them sequentially, stopping any unused Ollama model in between (`ollama stop <model>`).
 
-### 6. Query the pipeline
+### 6. Query The Pipeline
 
 **Terminal:**
 ```bash
@@ -108,7 +112,7 @@ uvicorn api:app --host 0.0.0.0 --port 8000
 3. Add a custom Pipe function pointing to `http://host.docker.internal:8000/query`
 4. Select it in the chat and start asking questions
 
-## How it works
+## How It Works
 
 1. **Parsing** — Docling extracts text, tables, and images from the PDF using layout detection (DocLayNet) and table structure recognition (TableFormer). Table chunks belonging to the same logical table are merged to avoid fragmenting structured data.
 2. **Image understanding** — Each extracted image is sent to a local vision-language model (qwen2.5vl:7b), which either describes its content (charts, infographics, photos) or flags it as decorative (logos, signatures) to skip.
@@ -118,11 +122,11 @@ uvicorn api:app --host 0.0.0.0 --port 8000
 6. **Reranking** — The top candidates are reranked with a cross-encoder (`bge-reranker-v2-m3`) for higher precision.
 7. **Generation** — The reranked passages are passed to `qwen3:8b`, which is instructed to answer strictly from the provided context and cite the page number.
 
-## Enterprise notes
+## Enterprise Notes
 
 This pipeline mirrors a production enterprise RAG architecture, with the following hardware-driven substitutions:
 
-| Production component | Local equivalent | Why |
+| Production Component | Local Equivalent | Why |
 |---|---|---|
 | vLLM (multi-user serving) | Ollama | Single-user, single-GPU setup |
 | GPU cluster | Single RTX 4070 Laptop (8GB VRAM) | Local development hardware |
@@ -131,7 +135,7 @@ This pipeline mirrors a production enterprise RAG architecture, with the followi
 
 A GPU-cloud version of this pipeline (using GraniteDocling/SmolDocling and Qdrant Cloud, tested on rented GPU infrastructure) is planned as a follow-up project for environments with more VRAM.
 
-## Known limitations
+## Known Limitations
 
 - Running Docling's table/layout models concurrently with another GPU-resident model (e.g. the vision model) on 8GB VRAM can cause `std::bad_alloc` errors. Always stop unused Ollama models before running `docling_test.py`.
 - Ingestion is a one-time, offline batch process — not designed to run on every query.
