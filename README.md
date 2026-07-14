@@ -122,24 +122,7 @@ uvicorn api:app --host 0.0.0.0 --port 8000
 6. **Reranking** — The top candidates are reranked with a cross-encoder (`bge-reranker-v2-m3`) for higher precision.
 7. **Generation** — The reranked passages are passed to `qwen3:8b`, which is instructed to answer strictly from the provided context and cite the page number.
 
-## Enterprise Notes
 
-This pipeline mirrors a production enterprise RAG architecture, with the following hardware-driven substitutions:
-
-| Production Component | Local Equivalent | Why |
-|---|---|---|
-| vLLM (multi-user serving) | Ollama | Single-user, single-GPU setup |
-| GPU cluster | Single RTX 4070 Laptop (8GB VRAM) | Local development hardware |
-| Managed vector DB | Self-hosted Qdrant (Docker) | No cloud dependency |
-| GraniteDocling / full VLM pipeline | Classical Docling pipeline + separate VLM step | 8GB VRAM cannot run a full-page VLM pipeline efficiently; this two-stage approach (DocLayNet/TableFormer for structure, qwen2.5vl for images) achieves comparable results in a fraction of the time on consumer hardware |
-
-A GPU-cloud version of this pipeline (using GraniteDocling/SmolDocling and Qdrant Cloud, tested on rented GPU infrastructure) is planned as a follow-up project for environments with more VRAM.
-
-## Known Limitations
-
-- Running Docling's table/layout models concurrently with another GPU-resident model (e.g. the vision model) on 8GB VRAM can cause `std::bad_alloc` errors. Always stop unused Ollama models before running `docling_test.py`.
-- Ingestion is a one-time, offline batch process — not designed to run on every query.
-- Vision model descriptions are generated in English for consistency; the multilingual embedding model (`bge-m3`) bridges this with Turkish queries without quality loss.
 
 ## License
 
